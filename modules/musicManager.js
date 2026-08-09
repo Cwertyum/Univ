@@ -17,8 +17,11 @@ let libsLoaded = false;
 
 async function loadMusicLibs() {
   if (libsLoaded) return { voiceModule, ytSearch, youtubedl, ytdlCore, playdl, ffmpegPath };
-  libsLoaded = true;
-
+  try {
+    const sodium = await import('libsodium-wrappers');
+    const sObj = sodium.default || sodium;
+    if (sObj.ready) await sObj.ready;
+  } catch {}
   try { voiceModule = await import('@discordjs/voice'); } catch {}
   try {
     const m = await import('play-dl');
