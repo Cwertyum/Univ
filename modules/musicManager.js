@@ -30,12 +30,22 @@ async function loadMusicLibs() {
     youtubedl = m.default || m;
   } catch {}
   try {
-    const ff = await import('ffmpeg-static');
-    ffmpegPath = ff.default || ff;
-    if (ffmpegPath && typeof ffmpegPath === 'string') {
-      process.env.FFMPEG_PATH = ffmpegPath;
+    const ffInstaller = await import('@ffmpeg-installer/ffmpeg');
+    const path = ffInstaller.default?.path || ffInstaller.path;
+    if (path) {
+      ffmpegPath = path;
+      process.env.FFMPEG_PATH = path;
     }
   } catch {}
+  if (!ffmpegPath) {
+    try {
+      const ff = await import('ffmpeg-static');
+      ffmpegPath = ff.default || ff;
+      if (ffmpegPath && typeof ffmpegPath === 'string') {
+        process.env.FFMPEG_PATH = ffmpegPath;
+      }
+    } catch {}
+  }
 
   return { voiceModule, ytSearch, youtubedl, ytdlCore, ffmpegPath };
 }
@@ -306,7 +316,8 @@ async function playNext(guildId) {
       serverQueue.controlMessage = null;
     }
     setTimeout(() => {
-      if (serverQueue.queue.length === 0 && serverQueue.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+      const destroyedStatus = voiceModule?.VoiceConnectionStatus?.Destroyed || 'destroyed';
+      if (serverQueue.queue.length === 0 && serverQueue.connection?.state?.status !== destroyedStatus) {
         serverQueue.connection.destroy();
         musicQueues.delete(guildId);
       }
@@ -339,10 +350,10 @@ async function playStream(serverQueue, track) {
     // 1. Try @distube/ytdl-core first (pure JS, ultra fast, no binary dependencies)
     if (ytdlCore && typeof ytdlCore === 'function') {
       try {
+        process.env.YTDL_NO_UPDATE = 'true';
         stream = ytdlCore(track.url, {
           filter: 'audioonly',
-          highWaterMark: 1 << 25,
-          quality: 'highestaudio'
+          highWaterMark: 1 << 25
         });
       } catch (err) {
         console.warn('[ytdl-core Warning]', err.message);
@@ -377,7 +388,19 @@ async function playStream(serverQueue, track) {
       throw new Error('Не удалось создать аудиопоток ни одним из доступных способов');
     }
 
-    const resource = createAudioResource(stream, { inputType: streamType });
+    let resource;
+    const demuxProbe = voiceModule?.demuxProbe;
+    if (demuxProbe && typeof demuxProbe === 'function') {
+      try {
+        const { stream: probedStream, type } = await demuxProbe(stream);
+        resource = createAudioResource(probedStream, { inputType: type });
+      } catch (probeErr) {
+        resource = createAudioResource(stream, { inputType: streamType });
+      }
+    } else {
+      resource = createAudioResource(stream, { inputType: streamType });
+    }
+
     serverQueue.player.play(resource);
 
     // Send or update control panel message
