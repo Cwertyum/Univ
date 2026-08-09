@@ -173,7 +173,6 @@ export async function playMusic(interaction, query) {
     }).catch(() => {});
   }
 
-  const { joinVoiceChannel, createAudioPlayer, AudioPlayerStatus, VoiceConnectionStatus, entersState } = vMod;
 
   // 1. Search YouTube using yt-search
   let track = null;
