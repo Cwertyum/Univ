@@ -94,11 +94,47 @@ process.on('uncaughtException', (err) => {
   console.error('[Uncaught Exception]', err);
 });
 
-// Login
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-  console.error('[Login Error] Ошибка: DISCORD_TOKEN не найден в .env файле!');
+// Login with automatic Intent Fallback if Discord Developer Portal switches are disabled
+async function startBot() {
+  const token = process.env.DISCORD_TOKEN;
+  if (!token) {
+    console.error('[Login Error] Ошибка: DISCORD_TOKEN не найден в переменных окружения!');
+    return;
+  }
+
+  try {
+    await client.login(token);
+  } catch (err) {
+    if (err.message.includes('disallowed intents') || err.message.includes('DisallowedIntents') || err.message.includes('intents')) {
+      console.warn('[Intents Warning] Discord API отклонил привилегированные интенты. Запуск авто-фоллбека со стандартными интентами...');
+      
+      const fallbackClient = new Client({
+        intents: [
+          GatewayIntentBits.Guilds,
+          GatewayIntentBits.GuildMessages,
+          GatewayIntentBits.GuildVoiceStates,
+          GatewayIntentBits.GuildMessageReactions
+        ],
+        partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+      });
+
+      fallbackClient.once('clientReady', () => handleReady(fallbackClient));
+      fallbackClient.on('messageCreate', (message) => handleMessageCreate(message));
+      fallbackClient.on('interactionCreate', (interaction) => handleInteractionCreate(interaction));
+      fallbackClient.on('voiceStateUpdate', (oldState, newState) => {
+        handleVoiceStateUpdate(oldState, newState);
+        trackVoiceXP(oldState, newState);
+      });
+      fallbackClient.on('guildMemberAdd', (member) => handleGuildMemberAdd(member));
+      fallbackClient.on('guildMemberRemove', (member) => handleGuildMemberRemove(member));
+
+      await fallbackClient.login(token).catch(fallbackErr => {
+        console.error('[Login Error] Не удалось авторизоваться в Discord API:', fallbackErr.message);
+      });
+    } else {
+      console.error('[Login Error] Ошибка входа в Discord API:', err.message);
+    }
+  }
 }
-client.login(token).catch(err => {
-  console.error('[Login Error] Ошибка входа в Discord API:', err.message);
-});
+
+startBot();
