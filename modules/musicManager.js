@@ -228,11 +228,15 @@ export async function playMusic(interaction, query) {
       channelId: voiceChannel.id,
       guildId: guild.id,
       adapterCreator: guild.voiceAdapterCreator,
-      selfDeaf: true,
+      selfDeaf: false,
       selfMute: false
     });
 
-    const player = createAudioPlayer();
+    const player = createAudioPlayer({
+      behaviors: {
+        noSubscriber: voiceModule?.NoSubscriberBehavior?.Play || 'play'
+      }
+    });
 
     serverQueue = {
       voiceChannel,
