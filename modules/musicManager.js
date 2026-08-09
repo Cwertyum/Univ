@@ -390,17 +390,9 @@ async function playStream(serverQueue, track) {
               console.warn('[youtube-dl-exec Process Warning]', procErr.message);
             });
             
-            const demuxProbe = voiceModule?.demuxProbe;
-            if (demuxProbe) {
-              try {
-                const { stream: probedStream, type } = await demuxProbe(proc.stdout);
-                resource = createAudioResource(probedStream, { inputType: type });
-              } catch {
-                resource = createAudioResource(proc.stdout, { inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' });
-              }
-            } else {
-              resource = createAudioResource(proc.stdout, { inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' });
-            }
+            resource = createAudioResource(proc.stdout, { 
+              inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' 
+            });
           }
         }
       } catch (ytdlExecErr) {
