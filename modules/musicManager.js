@@ -5,25 +5,34 @@ import {
 } from 'discord.js';
 import { createEmbed, COLORS, successEmbed, errorEmbed, infoEmbed } from '../utils/embedBuilder.js';
 
-let ffmpegPath = null;
-let youtubedl = null;
-let ytSearch = null;
 let voiceModule = null;
+let ytSearch = null;
+let youtubedl = null;
+let ffmpegPath = null;
+let libsLoaded = false;
 
-try { ffmpegPath = (await import('ffmpeg-static')).default; } catch (e) {}
-try { youtubedl = (await import('youtube-dl-exec')).default; } catch (e) {}
-try { ytSearch = (await import('yt-search')).default; } catch (e) {}
-try { voiceModule = await import('@discordjs/voice'); } catch (e) {}
+async function loadMusicLibs() {
+  if (libsLoaded) return { voiceModule, ytSearch, youtubedl, ffmpegPath };
+  libsLoaded = true;
 
-const joinVoiceChannel = voiceModule?.joinVoiceChannel;
-const createAudioPlayer = voiceModule?.createAudioPlayer;
-const createAudioResource = voiceModule?.createAudioResource;
-const AudioPlayerStatus = voiceModule?.AudioPlayerStatus;
-const VoiceConnectionStatus = voiceModule?.VoiceConnectionStatus;
-const entersState = voiceModule?.entersState;
+  try { voiceModule = await import('@discordjs/voice'); } catch {}
+  try {
+    const m = await import('yt-search');
+    ytSearch = m.default || m;
+  } catch {}
+  try {
+    const m = await import('youtube-dl-exec');
+    youtubedl = m.default || m;
+  } catch {}
+  try {
+    const ff = await import('ffmpeg-static');
+    ffmpegPath = ff.default || ff;
+    if (ffmpegPath && typeof ffmpegPath === 'string') {
+      process.env.FFMPEG_PATH = ffmpegPath;
+    }
+  } catch {}
 
-if (ffmpegPath) {
-  process.env.FFMPEG_PATH = typeof ffmpegPath === 'string' ? ffmpegPath : (ffmpegPath?.default || ffmpegPath);
+  return { voiceModule, ytSearch, youtubedl, ffmpegPath };
 }
 
 // Guild music queues: guildId -> { connection, player, queue: [], current, loopMode: 'off', speed: '1.0', controlMessage: null }
@@ -58,7 +67,8 @@ async function getSongLyrics(trackTitle) {
 
 // Generate Interactive Control Buttons Rows (Row 1: Controls, Row 2: Lyrics)
 function createMusicControlRows(serverQueue) {
-  const isPaused = serverQueue.player.state.status === AudioPlayerStatus.Paused;
+  const pausedStatus = voiceModule?.AudioPlayerStatus?.Paused || 'paused';
+  const isPaused = serverQueue.player?.state?.status === pausedStatus;
   
   let loopLabel = '🔁 Повтор: Выкл';
   let loopStyle = ButtonStyle.Secondary;
@@ -139,11 +149,21 @@ export async function playMusic(interaction, query) {
     await interaction.deferReply().catch(() => {});
   }
 
+  const { voiceModule: vMod, ytSearch: ytS } = await loadMusicLibs();
+
+  if (!vMod || !vMod.joinVoiceChannel) {
+    return await interaction.editReply({
+      embeds: [errorEmbed('Музыкальные модули (голосовые библиотеки) пока не установлены на сервере!')]
+    }).catch(() => {});
+  }
+
+  const { joinVoiceChannel, createAudioPlayer, AudioPlayerStatus, VoiceConnectionStatus, entersState } = vMod;
+
   // 1. Search YouTube using yt-search
   let track = null;
   try {
     if (query.startsWith('http://') || query.startsWith('https://')) {
-      const searchResult = await ytSearch({ videoId: getYouTubeId(query) }).catch(() => null);
+      const searchResult = ytS ? await ytS({ videoId: getYouTubeId(query) }).catch(() => null) : null;
       if (searchResult) {
         track = {
           title: searchResult.title,
@@ -161,8 +181,8 @@ export async function playMusic(interaction, query) {
           requester: member.user
         };
       }
-    } else {
-      const searchResult = await ytSearch(query);
+    } else if (ytS) {
+      const searchResult = await ytS(query).catch(() => null);
       if (searchResult && searchResult.videos && searchResult.videos.length > 0) {
         const top = searchResult.videos[0];
         track = {
@@ -302,6 +322,11 @@ async function playNext(guildId) {
 
 async function playStream(serverQueue, track) {
   try {
+    const createAudioResource = voiceModule?.createAudioResource;
+    if (!createAudioResource || !youtubedl) {
+      throw new Error('Музыкальные модули не загружены');
+    }
+
     const postArgs = serverQueue.speed !== '1.0'
       ? ['-af', `atempo=${serverQueue.speed}`]
       : [];
