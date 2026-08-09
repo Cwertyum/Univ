@@ -8,14 +8,19 @@ import { createEmbed, COLORS, successEmbed, errorEmbed, infoEmbed } from '../uti
 let voiceModule = null;
 let ytSearch = null;
 let youtubedl = null;
+let ytdlCore = null;
 let ffmpegPath = null;
 let libsLoaded = false;
 
 async function loadMusicLibs() {
-  if (libsLoaded) return { voiceModule, ytSearch, youtubedl, ffmpegPath };
+  if (libsLoaded) return { voiceModule, ytSearch, youtubedl, ytdlCore, ffmpegPath };
   libsLoaded = true;
 
   try { voiceModule = await import('@discordjs/voice'); } catch {}
+  try {
+    const m = await import('@distube/ytdl-core');
+    ytdlCore = m.default || m;
+  } catch {}
   try {
     const m = await import('yt-search');
     ytSearch = m.default || m;
@@ -32,7 +37,7 @@ async function loadMusicLibs() {
     }
   } catch {}
 
-  return { voiceModule, ytSearch, youtubedl, ffmpegPath };
+  return { voiceModule, ytSearch, youtubedl, ytdlCore, ffmpegPath };
 }
 
 // Guild music queues: guildId -> { connection, player, queue: [], current, loopMode: 'off', speed: '1.0', controlMessage: null }
@@ -323,26 +328,56 @@ async function playNext(guildId) {
 async function playStream(serverQueue, track) {
   try {
     const createAudioResource = voiceModule?.createAudioResource;
-    if (!createAudioResource || !youtubedl) {
+    const StreamType = voiceModule?.StreamType;
+    if (!createAudioResource) {
       throw new Error('Музыкальные модули не загружены');
     }
 
-    const postArgs = serverQueue.speed !== '1.0'
-      ? ['-af', `atempo=${serverQueue.speed}`]
-      : [];
+    let stream = null;
+    let streamType = StreamType?.Arbitrary || 'arbitrary';
 
-    const options = { output: '-', format: 'bestaudio/best' };
-    if (postArgs.length) {
-      options.postprocessorArgs = `ffmpeg:${postArgs.join(' ')}`;
+    // 1. Try @distube/ytdl-core first (pure JS, ultra fast, no binary dependencies)
+    if (ytdlCore && typeof ytdlCore === 'function') {
+      try {
+        stream = ytdlCore(track.url, {
+          filter: 'audioonly',
+          highWaterMark: 1 << 25,
+          quality: 'highestaudio'
+        });
+      } catch (err) {
+        console.warn('[ytdl-core Warning]', err.message);
+      }
     }
 
-    const proc = youtubedl.exec(
-      track.url,
-      options,
-      { stdio: ['ignore', 'pipe', 'ignore'] }
-    );
+    // 2. Fallback to youtube-dl-exec
+    if (!stream && youtubedl) {
+      const postArgs = serverQueue.speed !== '1.0'
+        ? ['-af', `atempo=${serverQueue.speed}`]
+        : [];
 
-    const resource = createAudioResource(proc.stdout);
+      const options = { 
+        output: '-', 
+        format: 'bestaudio/best',
+        noCheckCertificates: true,
+        noWarnings: true
+      };
+      if (postArgs.length) {
+        options.postprocessorArgs = `ffmpeg:${postArgs.join(' ')}`;
+      }
+
+      const proc = youtubedl.exec(
+        track.url,
+        options,
+        { stdio: ['ignore', 'pipe', 'ignore'] }
+      );
+      stream = proc.stdout;
+    }
+
+    if (!stream) {
+      throw new Error('Не удалось создать аудиопоток ни одним из доступных способов');
+    }
+
+    const resource = createAudioResource(stream, { inputType: streamType });
     serverQueue.player.play(resource);
 
     // Send or update control panel message
