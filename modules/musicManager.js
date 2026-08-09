@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import { 
   ActionRowBuilder,
   ButtonBuilder,
@@ -364,39 +365,30 @@ async function playStream(serverQueue, track) {
 
     let resource = null;
 
-    // 1. Try youtube-dl-exec + FFmpeg (yt-dlp - 100% verified stream bypasses YouTube rate limits and cipher bugs)
-    if (youtubedl) {
+    // 1. Try direct spawn of yt-dlp.exe (Zero Promise rejection, pure raw audio pipe)
+    const ytDlpPath = path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', 'yt-dlp.exe');
+    if (fs.existsSync(ytDlpPath)) {
       try {
-        const binExists = fs.existsSync(path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', 'yt-dlp.exe')) ||
-                          fs.existsSync(path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', 'yt-dlp'));
-        if (binExists) {
-          const postArgs = serverQueue.speed !== '1.0'
-            ? ['-af', `atempo=${serverQueue.speed}`]
-            : [];
+        const args = [
+          track.url,
+          '-o', '-',
+          '-f', 'bestaudio/best',
+          '--no-check-certificates',
+          '--no-warnings'
+        ];
 
-          const options = { 
-            output: '-', 
-            format: 'bestaudio/best',
-            noCheckCertificates: true,
-            noWarnings: true
-          };
-          if (postArgs.length) {
-            options.postprocessorArgs = `ffmpeg:${postArgs.join(' ')}`;
-          }
+        const proc = spawn(ytDlpPath, args, { stdio: ['ignore', 'pipe', 'ignore'] });
+        proc.on('error', (err) => {
+          console.warn('[yt-dlp Spawn Warning]', err.message);
+        });
 
-          const proc = youtubedl.exec(track.url, options, { stdio: ['ignore', 'pipe', 'ignore'] });
-          if (proc && proc.stdout) {
-            proc.on('error', (procErr) => {
-              console.warn('[youtube-dl-exec Process Warning]', procErr.message);
-            });
-            
-            resource = createAudioResource(proc.stdout, { 
-              inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' 
-            });
-          }
+        if (proc && proc.stdout) {
+          resource = createAudioResource(proc.stdout, { 
+            inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' 
+          });
         }
-      } catch (ytdlExecErr) {
-        console.warn('[youtube-dl-exec Warning]', ytdlExecErr.message);
+      } catch (ytdlErr) {
+        console.warn('[yt-dlp Warning]', ytdlErr.message);
       }
     }
 
