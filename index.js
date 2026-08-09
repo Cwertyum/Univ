@@ -96,9 +96,9 @@ process.on('uncaughtException', (err) => {
 
 // Login with automatic Intent Fallback if Discord Developer Portal switches are disabled
 async function startBot() {
-  const token = process.env.DISCORD_TOKEN;
+  const token = process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
   if (!token) {
-    console.error('[Login Error] Ошибка: DISCORD_TOKEN не найден в переменных окружения!');
+    console.error('[Login Error] Ошибка: DISCORD_TOKEN или DISCORD_BOT_TOKEN не найден в переменных окружения!');
     return;
   }
 
