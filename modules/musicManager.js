@@ -1,23 +1,29 @@
-import ffmpegPath from 'ffmpeg-static';
-import youtubedl from 'youtube-dl-exec';
-import ytSearch from 'yt-search';
 import { 
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle
 } from 'discord.js';
-import { 
-  joinVoiceChannel, 
-  createAudioPlayer, 
-  createAudioResource, 
-  AudioPlayerStatus, 
-  VoiceConnectionStatus,
-  entersState
-} from '@discordjs/voice';
 import { createEmbed, COLORS, successEmbed, errorEmbed, infoEmbed } from '../utils/embedBuilder.js';
 
+let ffmpegPath = null;
+let youtubedl = null;
+let ytSearch = null;
+let voiceModule = null;
+
+try { ffmpegPath = (await import('ffmpeg-static')).default; } catch (e) {}
+try { youtubedl = (await import('youtube-dl-exec')).default; } catch (e) {}
+try { ytSearch = (await import('yt-search')).default; } catch (e) {}
+try { voiceModule = await import('@discordjs/voice'); } catch (e) {}
+
+const joinVoiceChannel = voiceModule?.joinVoiceChannel;
+const createAudioPlayer = voiceModule?.createAudioPlayer;
+const createAudioResource = voiceModule?.createAudioResource;
+const AudioPlayerStatus = voiceModule?.AudioPlayerStatus;
+const VoiceConnectionStatus = voiceModule?.VoiceConnectionStatus;
+const entersState = voiceModule?.entersState;
+
 if (ffmpegPath) {
-  process.env.FFMPEG_PATH = ffmpegPath;
+  process.env.FFMPEG_PATH = typeof ffmpegPath === 'string' ? ffmpegPath : (ffmpegPath?.default || ffmpegPath);
 }
 
 // Guild music queues: guildId -> { connection, player, queue: [], current, loopMode: 'off', speed: '1.0', controlMessage: null }
