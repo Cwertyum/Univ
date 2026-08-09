@@ -220,6 +220,20 @@ export async function playMusic(interaction, query) {
     }).catch(() => {});
   }
 
+  const { 
+    joinVoiceChannel, 
+    createAudioPlayer, 
+    AudioPlayerStatus, 
+    VoiceConnectionStatus, 
+    entersState,
+    NoSubscriberBehavior 
+  } = vMod;
+
+  const idleStatus = AudioPlayerStatus?.Idle || 'idle';
+  const disconnectedStatus = VoiceConnectionStatus?.Disconnected || 'disconnected';
+  const signallingStatus = VoiceConnectionStatus?.Signalling || 'signalling';
+  const connectingStatus = VoiceConnectionStatus?.Connecting || 'connecting';
+
   // 2. Initialize or fetch queue
   let serverQueue = musicQueues.get(guild.id);
 
@@ -234,7 +248,7 @@ export async function playMusic(interaction, query) {
 
     const player = createAudioPlayer({
       behaviors: {
-        noSubscriber: voiceModule?.NoSubscriberBehavior?.Play || 'play'
+        noSubscriber: NoSubscriberBehavior?.Play || 'play'
       }
     });
 
@@ -253,18 +267,18 @@ export async function playMusic(interaction, query) {
     connection.subscribe(player);
     musicQueues.set(guild.id, serverQueue);
 
-    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    connection.on(disconnectedStatus, async () => {
       try {
         await Promise.race([
-          entersState(connection, VoiceConnectionStatus.Signalling, 5000),
-          entersState(connection, VoiceConnectionStatus.Connecting, 5000)
+          entersState(connection, signallingStatus, 5000),
+          entersState(connection, connectingStatus, 5000)
         ]);
       } catch {
         stopMusic(guild.id);
       }
     });
 
-    player.on(AudioPlayerStatus.Idle, () => {
+    player.on(idleStatus, () => {
       handleTrackEnd(guild.id);
     });
 
@@ -276,7 +290,8 @@ export async function playMusic(interaction, query) {
 
   serverQueue.queue.push(track);
 
-  if (serverQueue.player.state.status === AudioPlayerStatus.Idle && !serverQueue.current) {
+  const isPlayerIdle = serverQueue.player.state.status === idleStatus || serverQueue.player.state.status === 'idle';
+  if (isPlayerIdle && !serverQueue.current) {
     await playNext(guild.id);
     await interaction.editReply({ embeds: [successEmbed(`Запущено воспроизведение: **${track.title}**`)] }).catch(() => {});
   } else {
