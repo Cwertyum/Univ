@@ -10,6 +10,11 @@ if (typeof globalThis.File === 'undefined') {
   globalThis.File = FilePolyfill;
 }
 
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+if (ffmpegInstaller && ffmpegInstaller.path) {
+  process.env.FFMPEG_PATH = ffmpegInstaller.path;
+}
+
 import { Client, GatewayIntentBits, Partials, Options } from 'discord.js';
 import dotenv from 'dotenv';
 import { initDatabase } from './database/db.js';
