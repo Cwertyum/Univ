@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { 
   ActionRowBuilder,
   ButtonBuilder,
@@ -342,52 +344,70 @@ async function playStream(serverQueue, track) {
     let resource = null;
 
     // 1. Try play-dl (most reliable, native Opus/WebM Discord stream)
-    if (playdl && (playdl.stream || playdl.default?.stream)) {
+    if (playdl) {
       try {
         const streamFn = playdl.stream || playdl.default?.stream;
-        const playStreamRes = await streamFn(track.url);
-        if (playStreamRes && playStreamRes.stream) {
-          resource = createAudioResource(playStreamRes.stream, { inputType: playStreamRes.type });
+        const validateFn = playdl.yt_validate || playdl.default?.yt_validate;
+        const searchFn = playdl.search || playdl.default?.search;
+        
+        let targetUrl = track.url;
+        if (validateFn && targetUrl) {
+          const vType = validateFn(targetUrl);
+          if (vType !== 'video' && searchFn) {
+            const sRes = await searchFn(track.title || targetUrl, { limit: 1 });
+            if (sRes && sRes.length > 0) targetUrl = sRes[0].url;
+          }
+        }
+
+        if (streamFn && targetUrl) {
+          const playStreamRes = await streamFn(targetUrl);
+          if (playStreamRes && playStreamRes.stream) {
+            resource = createAudioResource(playStreamRes.stream, { inputType: playStreamRes.type });
+          }
         }
       } catch (playErr) {
         console.warn('[play-dl Warning]', playErr.message);
       }
     }
 
-    // 2. Fallback to youtube-dl-exec + FFmpeg
+    // 2. Fallback to youtube-dl-exec + FFmpeg (check binary existence to prevent ENOENT)
     if (!resource && youtubedl) {
       try {
-        const postArgs = serverQueue.speed !== '1.0'
-          ? ['-af', `atempo=${serverQueue.speed}`]
-          : [];
+        const binExists = fs.existsSync(path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', 'yt-dlp.exe')) ||
+                          fs.existsSync(path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', 'yt-dlp'));
+        if (binExists) {
+          const postArgs = serverQueue.speed !== '1.0'
+            ? ['-af', `atempo=${serverQueue.speed}`]
+            : [];
 
-        const options = { 
-          output: '-', 
-          format: 'bestaudio/best',
-          noCheckCertificates: true,
-          noWarnings: true
-        };
-        if (postArgs.length) {
-          options.postprocessorArgs = `ffmpeg:${postArgs.join(' ')}`;
-        }
-
-        const proc = youtubedl.exec(track.url, options, { stdio: ['ignore', 'pipe', 'ignore'] });
-        if (proc) {
-          proc.on('error', (procErr) => {
-            console.warn('[youtube-dl-exec Process Warning]', procErr.message);
-          });
-        }
-        
-        const demuxProbe = voiceModule?.demuxProbe;
-        if (demuxProbe && proc?.stdout) {
-          try {
-            const { stream: probedStream, type } = await demuxProbe(proc.stdout);
-            resource = createAudioResource(probedStream, { inputType: type });
-          } catch {
-            resource = createAudioResource(proc.stdout, { inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' });
+          const options = { 
+            output: '-', 
+            format: 'bestaudio/best',
+            noCheckCertificates: true,
+            noWarnings: true
+          };
+          if (postArgs.length) {
+            options.postprocessorArgs = `ffmpeg:${postArgs.join(' ')}`;
           }
-        } else if (proc?.stdout) {
-          resource = createAudioResource(proc.stdout, { inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' });
+
+          const proc = youtubedl.exec(track.url, options, { stdio: ['ignore', 'pipe', 'ignore'] });
+          if (proc && proc.stdout) {
+            proc.on('error', (procErr) => {
+              console.warn('[youtube-dl-exec Process Warning]', procErr.message);
+            });
+            
+            const demuxProbe = voiceModule?.demuxProbe;
+            if (demuxProbe) {
+              try {
+                const { stream: probedStream, type } = await demuxProbe(proc.stdout);
+                resource = createAudioResource(probedStream, { inputType: type });
+              } catch {
+                resource = createAudioResource(proc.stdout, { inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' });
+              }
+            } else {
+              resource = createAudioResource(proc.stdout, { inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' });
+            }
+          }
         }
       } catch (ytdlExecErr) {
         console.warn('[youtube-dl-exec Warning]', ytdlExecErr.message);
