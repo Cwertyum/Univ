@@ -451,12 +451,13 @@ export async function handleMusicButtonInteraction(interaction) {
 
   // 1. Pause / Resume
   if (customId === 'music_btn_pause') {
-    const isPaused = serverQueue.player.state.status === AudioPlayerStatus.Paused;
+    const pausedStatus = voiceModule?.AudioPlayerStatus?.Paused || 'paused';
+    const isPaused = serverQueue.player?.state?.status === pausedStatus;
     if (isPaused) {
-      serverQueue.player.unpause();
+      serverQueue.player?.unpause();
       await interaction.reply({ embeds: [successEmbed('▶️ Воспроизведение возобновлено!')], ephemeral: true }).catch(() => {});
     } else {
-      serverQueue.player.pause();
+      serverQueue.player?.pause();
       await interaction.reply({ embeds: [infoEmbed('⏸️ Воспроизведение поставлено на паузу!')], ephemeral: true }).catch(() => {});
     }
     updatePlayerCard(guild.id);
