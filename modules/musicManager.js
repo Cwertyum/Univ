@@ -373,6 +373,7 @@ async function playStream(serverQueue, track) {
           track.url,
           '-o', '-',
           '-f', 'bestaudio/best',
+          '--js-runtimes', 'node',
           '--no-check-certificates',
           '--no-warnings'
         ];

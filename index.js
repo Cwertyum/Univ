@@ -10,6 +10,13 @@ if (typeof globalThis.File === 'undefined') {
   globalThis.File = FilePolyfill;
 }
 
+// Suppress Node 25 TimeoutNegativeWarning when voice ping or delay calculation is negative
+const origSetTimeout = global.setTimeout;
+global.setTimeout = function (fn, delay, ...args) {
+  if (typeof delay === 'number' && delay < 0) delay = 1;
+  return origSetTimeout(fn, delay, ...args);
+};
+
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 if (ffmpegInstaller && ffmpegInstaller.path) {
   process.env.FFMPEG_PATH = ffmpegInstaller.path;
