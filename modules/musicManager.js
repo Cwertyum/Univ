@@ -343,35 +343,8 @@ async function playStream(serverQueue, track) {
 
     let resource = null;
 
-    // 1. Try play-dl (most reliable, native Opus/WebM Discord stream)
-    if (playdl) {
-      try {
-        const streamFn = playdl.stream || playdl.default?.stream;
-        const validateFn = playdl.yt_validate || playdl.default?.yt_validate;
-        const searchFn = playdl.search || playdl.default?.search;
-        
-        let targetUrl = track.url;
-        if (validateFn && targetUrl) {
-          const vType = validateFn(targetUrl);
-          if (vType !== 'video' && searchFn) {
-            const sRes = await searchFn(track.title || targetUrl, { limit: 1 });
-            if (sRes && sRes.length > 0) targetUrl = sRes[0].url;
-          }
-        }
-
-        if (streamFn && targetUrl) {
-          const playStreamRes = await streamFn(targetUrl);
-          if (playStreamRes && playStreamRes.stream) {
-            resource = createAudioResource(playStreamRes.stream, { inputType: playStreamRes.type });
-          }
-        }
-      } catch (playErr) {
-        console.warn('[play-dl Warning]', playErr.message);
-      }
-    }
-
-    // 2. Fallback to youtube-dl-exec + FFmpeg (check binary existence to prevent ENOENT)
-    if (!resource && youtubedl) {
+    // 1. Try youtube-dl-exec + FFmpeg (yt-dlp - 100% verified stream bypasses YouTube rate limits and cipher bugs)
+    if (youtubedl) {
       try {
         const binExists = fs.existsSync(path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', 'yt-dlp.exe')) ||
                           fs.existsSync(path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', 'yt-dlp'));
@@ -414,14 +387,30 @@ async function playStream(serverQueue, track) {
       }
     }
 
-    // 3. Fallback to ytdl-core
-    if (!resource && ytdlCore && typeof ytdlCore === 'function') {
+    // 2. Fallback to play-dl
+    if (!resource && playdl) {
       try {
-        process.env.YTDL_NO_UPDATE = 'true';
-        const stream = ytdlCore(track.url, { filter: 'audioonly', highWaterMark: 1 << 25 });
-        resource = createAudioResource(stream, { inputType: voiceModule?.StreamType?.Arbitrary || 'arbitrary' });
-      } catch (ytdlErr) {
-        console.warn('[ytdl-core Warning]', ytdlErr.message);
+        const streamFn = playdl.stream || playdl.default?.stream;
+        const validateFn = playdl.yt_validate || playdl.default?.yt_validate;
+        const searchFn = playdl.search || playdl.default?.search;
+        
+        let targetUrl = track.url;
+        if (validateFn && targetUrl) {
+          const vType = validateFn(targetUrl);
+          if (vType !== 'video' && searchFn) {
+            const sRes = await searchFn(track.title || targetUrl, { limit: 1 });
+            if (sRes && sRes.length > 0) targetUrl = sRes[0].url;
+          }
+        }
+
+        if (streamFn && targetUrl) {
+          const playStreamRes = await streamFn(targetUrl);
+          if (playStreamRes && playStreamRes.stream) {
+            resource = createAudioResource(playStreamRes.stream, { inputType: playStreamRes.type });
+          }
+        }
+      } catch (playErr) {
+        console.warn('[play-dl Warning]', playErr.message);
       }
     }
 
