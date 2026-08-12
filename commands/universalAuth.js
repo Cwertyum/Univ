@@ -99,11 +99,17 @@ function hashPassword(password, salt = 'UniversalAuthSalt2026') {
 // ── Command Handlers ──────────────────────────────────────────
 export async function executeActivate(interaction) {
   const keyInput = interaction.options.getString('key').trim();
-  const player = db.getAuthPlayerBySecretKey(keyInput);
+  let player = db.getAuthPlayerBySecretKey(keyInput);
+
+  // Fallback: If player not yet in Discord bot local DB, try matching single pending key or lookup
+  if (!player) {
+    const allPlayers = db.getAllAuthPlayers();
+    player = allPlayers.find(p => p.secret_key && p.secret_key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === keyInput.replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+  }
 
   if (!player) {
     return await interaction.reply({
-      content: '❌ **Неверный ключ активации!** Убедитесь, что вы ввели код правильно из Minecraft (`/2fa`).',
+      content: '❌ **Неверный ключ активации!** Убедитесь, что ваш Minecraft плагин подключен к боту (`bot_host`) и вы ввели код из `/2fa`.',
       ephemeral: true
     });
   }
