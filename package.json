@@ -23,7 +23,6 @@
     "opusscript": "^0.0.8",
     "play-dl": "^1.9.7",
     "tweetnacl": "^1.0.3",
-    "youtube-dl-exec": "^3.0.16",
     "yt-search": "^2.12.1"
   }
 }
