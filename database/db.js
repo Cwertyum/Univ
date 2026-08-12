@@ -24,7 +24,8 @@ class PureJSDatabase {
       temp_voices: {},
       shop_items: [],
       temp_mutes: {},
-      user_quests: {}
+      user_quests: {},
+      universal_auth: {}
     };
     this.load();
   }
@@ -345,6 +346,62 @@ class PureJSDatabase {
 
     this.save();
     return { changes: 1 };
+  }
+
+  // ── UNIVERSAL AUTH (MINECRAFT 2FA & AUTH SYSTEM) ───────────
+  getAuthPlayer(username) {
+    if (!username) return null;
+    const key = String(username).toLowerCase();
+    return this.tables.universal_auth[key] || null;
+  }
+
+  getAuthPlayerBySecretKey(secretKey) {
+    if (!secretKey) return null;
+    return Object.values(this.tables.universal_auth).find(
+      p => p.secret_key && p.secret_key.toLowerCase() === String(secretKey).toLowerCase()
+    ) || null;
+  }
+
+  getAuthPlayerByDiscordId(discordId) {
+    if (!discordId) return null;
+    return Object.values(this.tables.universal_auth).find(
+      p => p.discord_id === String(discordId)
+    ) || null;
+  }
+
+  saveAuthPlayer(data) {
+    if (!data || !data.username) return false;
+    const key = String(data.username).toLowerCase();
+    const existing = this.tables.universal_auth[key] || {};
+    this.tables.universal_auth[key] = {
+      username: key,
+      display_name: data.display_name || existing.display_name || data.username,
+      password_hash: data.password_hash || existing.password_hash || '',
+      ip_address: data.ip_address || existing.ip_address || '127.0.0.1',
+      registration_date: data.registration_date || existing.registration_date || Date.now(),
+      last_login: data.last_login || existing.last_login || Date.now(),
+      is_2fa_enabled: data.is_2fa_enabled !== undefined ? Boolean(data.is_2fa_enabled) : Boolean(existing.is_2fa_enabled),
+      discord_id: data.discord_id !== undefined ? data.discord_id : (existing.discord_id || null),
+      secret_key: data.secret_key !== undefined ? data.secret_key : (existing.secret_key || null),
+      is_frozen: data.is_frozen !== undefined ? Boolean(data.is_frozen) : Boolean(existing.is_frozen)
+    };
+    this.save();
+    return true;
+  }
+
+  deleteAuthPlayer(username) {
+    if (!username) return false;
+    const key = String(username).toLowerCase();
+    if (this.tables.universal_auth[key]) {
+      delete this.tables.universal_auth[key];
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  getAllAuthPlayers() {
+    return Object.values(this.tables.universal_auth);
   }
 }
 

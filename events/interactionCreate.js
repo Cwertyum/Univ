@@ -22,6 +22,16 @@ import { handleVoiceInteraction } from '../modules/tempVoice.js';
 import { handleTicketInteraction } from '../modules/ticketManager.js';
 import { handleGiveawayButton } from '../modules/giveawayManager.js';
 import { handleMusicButtonInteraction } from '../modules/musicManager.js';
+import {
+  executeActivate,
+  execute2FADiscord,
+  executeMcFreeze,
+  executeMcUnfreeze,
+  executeMcKick,
+  executeMcChangePass,
+  executeMcUserInfo
+} from '../commands/universalAuth.js';
+import { handleUniversalAuthButton } from '../modules/universalAuthBridge.js';
 
 export async function handleInteractionCreate(interaction) {
   try {
@@ -59,9 +69,19 @@ export async function handleInteractionCreate(interaction) {
       else if (commandName === 'staff-report') await executeStaffReport(interaction);
       else if (commandName === 'marry') await executeMarry(interaction);
       else if (commandName === 'tgbot') await executeTgbot(interaction);
+      else if (commandName === 'activate') await executeActivate(interaction);
+      else if (commandName === '2fa-discord') await execute2FADiscord(interaction);
+      else if (commandName === 'mc-freeze') await executeMcFreeze(interaction);
+      else if (commandName === 'mc-unfreeze') await executeMcUnfreeze(interaction);
+      else if (commandName === 'mc-kick') await executeMcKick(interaction);
+      else if (commandName === 'mc-changepass') await executeMcChangePass(interaction);
+      else if (commandName === 'mc-userinfo') await executeMcUserInfo(interaction);
       return;
     }
 
+    // 1.5. Handle UniversalAuth 2FA Buttons
+    const handled2FA = await handleUniversalAuthButton(interaction);
+    if (handled2FA) return;
 
     // 2. Handle Music Buttons
     const handledMusic = await handleMusicButtonInteraction(interaction);

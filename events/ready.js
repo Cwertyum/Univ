@@ -20,9 +20,26 @@ import { data as staffReportData } from '../commands/staffReport.js';
 import { data as marryData } from '../commands/marry.js';
 import { data as tgbotData, execute as executeTgbot } from '../commands/tgbot.js';
 import { startTelegramBot } from '../modules/telegramLauncher.js';
+import {
+  dataActivate,
+  data2FADiscord,
+  dataMcFreeze,
+  dataMcUnfreeze,
+  dataMcKick,
+  dataMcChangePass,
+  dataMcUserInfo
+} from '../commands/universalAuth.js';
+import { startUniversalAuthBridge } from '../modules/universalAuthBridge.js';
 
 export async function handleReady(client) {
   console.log(`[Bot Ready] Успешно авторизован как ${client.user.tag}!`);
+
+  // Auto-launch UniversalAuth Bridge Server
+  try {
+    startUniversalAuthBridge(client);
+  } catch (e) {
+    console.error('[UniversalAuth Bridge Error]', e.message);
+  }
 
   // Auto-launch Telegram Bot Plugin
   try {
@@ -57,7 +74,15 @@ export async function handleReady(client) {
     createMessageData.toJSON(),
     questsData.toJSON(),
     staffReportData.toJSON(),
-    marryData.toJSON()
+    marryData.toJSON(),
+
+    dataActivate.toJSON(),
+    data2FADiscord.toJSON(),
+    dataMcFreeze.toJSON(),
+    dataMcUnfreeze.toJSON(),
+    dataMcKick.toJSON(),
+    dataMcChangePass.toJSON(),
+    dataMcUserInfo.toJSON()
   ];
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);

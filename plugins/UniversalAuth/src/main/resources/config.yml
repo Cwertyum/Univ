@@ -1,0 +1,73 @@
+# ======================================================
+# UNIVERSALAUTH CONFIGURATION
+# ПОДДЕРЖКА ЯДЕР: SPIGOT / PAPER / BUNGEECORD / VELOCITY
+# ======================================================
+
+# База Данных (sqlite или mysql)
+database:
+  type: "sqlite" # sqlite или mysql
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "minecraft"
+    username: "root"
+    password: ""
+    table_prefix: "ua_"
+
+# Настройка Telegram Бота (Прямой Токен из @BotFather)
+telegram:
+  enabled: true
+  bot_token: "ВАШ_TELEGRAM_BOT_TOKEN_ИЗ_BOTFATHER"
+  bot_host: "http://localhost"
+  bot_port: 3002
+
+# Настройка Discord Бота
+discord:
+  enabled: true
+  bot_host: "http://localhost"
+  bot_port: 3001
+  poll_interval_ticks: 20
+  timeout_seconds: 60
+
+# Поддержка Прокси-Сетей (BungeeCord & Velocity)
+proxy:
+  bungeecord_support: true
+  velocity_support: true
+  use_proxy_ip_forwarding: true
+
+# Ограничения неавторизованного игрока
+security:
+  blindness_effect: true
+  freeze_position: true
+  prevent_chat: true
+  prevent_commands: true
+  prevent_damage: true
+
+# Текстовые Сообщения (Локализация)
+messages:
+  prefix: "&8[&bUniversalAuth&8] &r"
+  please_register: "&eЗарегистрируйтесь: &b/register <пароль> <подтверждениеПароля>"
+  please_login: "&eАвторизуйтесь: &b/login <пароль>"
+  already_registered: "&cВы уже зарегистрированы! Используйте /login <пароль>."
+  not_registered: "&cВы не зарегистрированы! Используйте /register <пароль> <подтверждениеПароля>."
+  login_success: "&aВы успешно авторизовались! Приятной игры."
+  wrong_password: "&cНеверный пароль! Попробуйте снова."
+  register_success: "&aРегистрация прошла успешно! Вы авторизованы."
+  passwords_dont_match: "&cПароли не совпадают!"
+  password_changed: "&aВаш пароль успешно изменен!"
+  
+  # 2FA Сообщения
+  2fa_required: "&b[2FA] &eПодтвердите вход в Discord или Telegram!"
+  2fa_key_generated: "&aКлюч активации 2FA: &b%key% &e\nВведите в боте: &b/activate %key%"
+  2fa_already_enabled: "&cУ вас уже включена 2FA!"
+  2fa_disabled: "&aДвухфакторная аутентификация (2FA) отключена."
+  2fa_approved: "&a[2FA] Вход успешно подтвержден!"
+  2fa_rejected: "&c[2FA] Вход отклонен! Вы кикнуты."
+  2fa_timeout: "&c[2FA] Время ожидания 2FA истекло."
+
+  # Заморозка и Кик
+  account_frozen: "&c⛔ Ваш аккаунт ЗАМОРОЖЕН! Вход на сервер запрещен.\n&7Причина: %reason%"
+  frozen_admin: "&aАккаунт игрока &b%player% &aуспешно заморожен."
+  unfrozen_admin: "&aАккаунт игрока &b%player% &aуспешно разморожен."
+  kicked_admin: "&aИгрок &b%player% &aуспешно кикнут с сервера."
+  no_permission: "&cУ вас нет прав для выполнения этой команды."

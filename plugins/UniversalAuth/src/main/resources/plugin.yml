@@ -1,0 +1,47 @@
+name: UniversalAuth
+version: 1.0.0
+main: net.universalauth.UniversalAuth
+api-version: 1.16
+author: UniversalAuthTeam
+description: Universal Minecraft Auth System with Discord 2FA, Freeze, Kick, ChangePass, DB and LimboAuth/AuthMe support
+softdepend: [AuthMe, LimboAuth]
+
+commands:
+  login:
+    description: Авторизоваться на сервере
+    usage: /login <пароль>
+    aliases: [l]
+  register:
+    description: Зарегистрировать новый аккаунт
+    usage: /register <пароль> <подтверждениеПароля>
+    aliases: [reg]
+  changepassword:
+    description: Сменить текущий пароль
+    usage: /changepassword <старыйПароль> <новыйПароль>
+    aliases: [changepass, cpw]
+  2fa:
+    description: Управление 2FA авторизацией через Discord
+    usage: /2fa [setup|disable|status]
+  freeze:
+    description: Заморозить аккаунт игрока
+    usage: /freeze <никнейм> [причина]
+    permission: universalauth.admin.freeze
+  unfreeze:
+    description: Разморозить аккаунт игрока
+    usage: /unfreeze <никнейм>
+    permission: universalauth.admin.unfreeze
+  kick:
+    description: Кикнуть игрока с сервера
+    usage: /kick <никнейм> [причина]
+    permission: universalauth.admin.kick
+
+permissions:
+  universalauth.admin.freeze:
+    description: Право замораживать аккаунты игроков
+    default: op
+  universalauth.admin.unfreeze:
+    description: Право размораживать аккаунты игроков
+    default: op
+  universalauth.admin.kick:
+    description: Право кикать игроков
+    default: op

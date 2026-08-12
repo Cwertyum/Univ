@@ -1,0 +1,5 @@
+name: UniversalAuth
+main: net.universalauth.bungee.UniversalAuthBungee
+version: 1.0.0
+author: UniversalAuthTeam
+description: Universal BungeeCord Auth System with 2FA, Freeze, Kick, ChangePass & Discord/Telegram Integration
