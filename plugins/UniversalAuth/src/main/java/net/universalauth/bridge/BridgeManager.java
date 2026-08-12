@@ -125,14 +125,12 @@ public class BridgeManager {
             }
         } catch (Exception e) {
             long now = System.currentTimeMillis();
-            if (isDiscord && now - lastDiscordConnError > 30000) {
+            if (isDiscord && now - lastDiscordConnError > 300000) {
                 lastDiscordConnError = now;
-                plugin.getLogger().warning("[UniversalAuth Bridge] ⚠️ Ошибка соединения с Discord ботом по адресу: " + urlStr + 
-                    " | Укажите реальный IP хостинга в config.yml (discord.bot_host)");
-            } else if (!isDiscord && now - lastTelegramConnError > 30000) {
+                plugin.getLogger().warning("[UniversalAuth Bridge] ⚠️ Нет связи с Discord ботом (http://localhost:3001). Укажите IP вашего бота в config.yml (discord.bot_host)");
+            } else if (!isDiscord && now - lastTelegramConnError > 300000) {
                 lastTelegramConnError = now;
-                plugin.getLogger().warning("[UniversalAuth Bridge] ⚠️ Ошибка соединения с Telegram ботом по адресу: " + urlStr + 
-                    " | Укажите реальный IP хостинга в config.yml (telegram.bot_host)");
+                plugin.getLogger().warning("[UniversalAuth Bridge] ⚠️ Нет связи с Telegram ботом (http://localhost:3002). Укажите IP вашего бота в config.yml (telegram.bot_host)");
             }
         }
     }
