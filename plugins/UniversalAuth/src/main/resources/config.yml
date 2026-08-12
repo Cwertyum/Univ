@@ -4,13 +4,14 @@
 # ======================================================
 
 # ------------------------------------------------------
-# 🔑 ТОКЕНЫ БОТОВ (ДИСКОРД И ТЕЛЕГРАМ)
+# 🔑 ТОКЕНЫ И АДРЕСА БОТОВ (ДИСКОРД И ТЕЛЕГРАМ)
 # ------------------------------------------------------
 
 # Настройка Discord Бота
 discord:
   enabled: true
-  bot_token: "YOUR_DISCORD_BOT_TOKEN" # Токен из https://discord.com/developers/applications
+  bot_token: "YOUR_DISCORD_BOT_TOKEN"
+  # Если бот и майнкрафт на разных хостингах/серверах, укажите ИП или домен вашего бота вместо localhost:
   bot_host: "http://localhost"
   bot_port: 3001
   poll_interval_ticks: 20
@@ -19,7 +20,7 @@ discord:
 # Настройка Telegram Бота
 telegram:
   enabled: true
-  bot_token: "YOUR_TELEGRAM_BOT_TOKEN" # Токен от @BotFather
+  bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
   bot_host: "http://localhost"
   bot_port: 3002
   poll_interval_ticks: 20

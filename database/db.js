@@ -357,9 +357,15 @@ class PureJSDatabase {
 
   getAuthPlayerBySecretKey(secretKey) {
     if (!secretKey) return null;
-    return Object.values(this.tables.universal_auth).find(
-      p => p.secret_key && p.secret_key.toLowerCase() === String(secretKey).toLowerCase()
-    ) || null;
+    const cleanInput = String(secretKey).trim().toLowerCase();
+    const strippedInput = cleanInput.replace(/[^a-z0-9]/g, '');
+
+    return Object.values(this.tables.universal_auth).find(p => {
+      if (!p.secret_key) return false;
+      const storedClean = String(p.secret_key).trim().toLowerCase();
+      const storedStripped = storedClean.replace(/[^a-z0-9]/g, '');
+      return storedClean === cleanInput || (storedStripped.length > 0 && storedStripped === strippedInput);
+    }) || null;
   }
 
   getAuthPlayerByDiscordId(discordId) {
