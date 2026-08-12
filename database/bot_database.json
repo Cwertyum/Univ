@@ -1,0 +1,29 @@
+{
+  "guild_config": {},
+  "warns": [],
+  "users": {},
+  "tickets": {},
+  "marriages": {},
+  "reaction_roles": [],
+  "giveaways": {},
+  "reminders": [],
+  "custom_commands": {},
+  "temp_voices": {},
+  "shop_items": [],
+  "temp_mutes": {},
+  "user_quests": {},
+  "universal_auth": {
+    "player_977615": {
+      "username": "player_977615",
+      "display_name": "cwertyum",
+      "password_hash": "",
+      "ip_address": "127.0.0.1",
+      "registration_date": 1786570648848,
+      "last_login": 1786570648848,
+      "is_2fa_enabled": true,
+      "discord_id": "1301230750879977615",
+      "secret_key": null,
+      "is_frozen": false
+    }
+  }
+}
