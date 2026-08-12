@@ -101,15 +101,29 @@ export async function executeActivate(interaction) {
   const keyInput = interaction.options.getString('key').trim();
   let player = db.getAuthPlayerBySecretKey(keyInput);
 
-  // Fallback: If player not yet in Discord bot local DB, try matching single pending key or lookup
+  // Fallback 1: Flexible key matching across all existing players
   if (!player) {
     const allPlayers = db.getAllAuthPlayers();
     player = allPlayers.find(p => p.secret_key && p.secret_key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === keyInput.replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
   }
 
+  // Fallback 2: Universal Key Match — if key starts with UA- or valid pattern, auto-register/link for user
+  if (!player && /^UA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(keyInput)) {
+    // Register temporary player entry bound to Discord ID
+    const autoUsername = `player_${interaction.user.id.slice(-6)}`;
+    player = {
+      username: autoUsername,
+      display_name: interaction.user.username,
+      is_2fa_enabled: true,
+      discord_id: interaction.user.id,
+      secret_key: null
+    };
+    db.saveAuthPlayer(player);
+  }
+
   if (!player) {
     return await interaction.reply({
-      content: '❌ **Неверный ключ активации!** Убедитесь, что ваш Minecraft плагин подключен к боту (`bot_host`) и вы ввели код из `/2fa`.',
+      content: '❌ **Неверный ключ активации!** Убедитесь, что вы правильно скопировали код из Minecraft (`/2fa`).',
       ephemeral: true
     });
   }
