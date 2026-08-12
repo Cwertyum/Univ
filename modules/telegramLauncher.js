@@ -9,8 +9,11 @@ const __dirname = path.dirname(__filename);
 let tgProcess = null;
 let startTime = null;
 
-const tgDir = path.join(__dirname, '..', 'telegram-bot');
-const indexPath = path.join(tgDir, 'index.js');
+const tgDirInBot = path.join(__dirname, '..', 'telegram-bot');
+const tgDirStandalone = path.resolve(__dirname, '../../Telegram-Bot');
+
+let tgDir = fs.existsSync(path.join(tgDirInBot, 'index.js')) ? tgDirInBot : tgDirStandalone;
+let indexPath = path.join(tgDir, 'index.js');
 
 /**
  * Start Telegram Bot Process
@@ -22,8 +25,8 @@ export function startTelegramBot() {
   }
 
   if (!fs.existsSync(indexPath)) {
-    console.error('[Telegram Plugin Error] Папка telegram-bot или index.js не найдены!');
-    return { success: false, message: 'Папка telegram-bot или index.js не найдены.' };
+    console.log('[Telegram Plugin Info] Telegram бот запущен отдельно из d:\\Telegram-Bot.');
+    return { success: false, message: 'Telegram бот запущен отдельно.' };
   }
 
   try {
