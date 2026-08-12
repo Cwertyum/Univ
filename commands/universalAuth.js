@@ -28,12 +28,11 @@ export const data2FADiscord = new SlashCommandBuilder()
 
 export const dataMcFreeze = new SlashCommandBuilder()
   .setName('mc-freeze')
-  .setDescription('❄️ Заморозить аккаунт игрока в Minecraft (запрет на вход)')
-  .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+  .setDescription('❄️ Заморозить свой (или чужой для Админов) аккаунт в Minecraft')
   .addStringOption(option =>
     option.setName('player')
-      .setDescription('Никнейм игрока Minecraft')
-      .setRequired(true)
+      .setDescription('Никнейм игрока (Оставьте пустым для своего аккаунта)')
+      .setRequired(false)
   )
   .addStringOption(option =>
     option.setName('reason')
@@ -43,22 +42,20 @@ export const dataMcFreeze = new SlashCommandBuilder()
 
 export const dataMcUnfreeze = new SlashCommandBuilder()
   .setName('mc-unfreeze')
-  .setDescription('🔥 Разморозить аккаунт игрока в Minecraft')
-  .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+  .setDescription('🔥 Разморозить свой (или чужой для Админов) аккаунт в Minecraft')
   .addStringOption(option =>
     option.setName('player')
-      .setDescription('Никнейм игрока Minecraft')
-      .setRequired(true)
+      .setDescription('Никнейм игрока (Оставьте пустым для своего аккаунта)')
+      .setRequired(false)
   );
 
 export const dataMcKick = new SlashCommandBuilder()
   .setName('mc-kick')
-  .setDescription('👢 Кикнуть игрока с сервера Minecraft')
-  .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+  .setDescription('👢 Кикнуть свой аккаунт (или чужой для Админов) с сервера Minecraft')
   .addStringOption(option =>
     option.setName('player')
-      .setDescription('Никнейм игрока Minecraft')
-      .setRequired(true)
+      .setDescription('Никнейм игрока (Оставьте пустым для своего аккаунта)')
+      .setRequired(false)
   )
   .addStringOption(option =>
     option.setName('reason')
@@ -68,27 +65,25 @@ export const dataMcKick = new SlashCommandBuilder()
 
 export const dataMcChangePass = new SlashCommandBuilder()
   .setName('mc-changepass')
-  .setDescription('🔑 Изменить пароль от аккаунта Minecraft игрока')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-  .addStringOption(option =>
-    option.setName('player')
-      .setDescription('Никнейм игрока Minecraft')
-      .setRequired(true)
-  )
+  .setDescription('🔑 Изменить пароль своего (или чужого для Админов) аккаунта Minecraft')
   .addStringOption(option =>
     option.setName('newpassword')
       .setDescription('Новый пароль')
       .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName('player')
+      .setDescription('Никнейм игрока (Только для Админов!)')
+      .setRequired(false)
   );
 
 export const dataMcUserInfo = new SlashCommandBuilder()
   .setName('mc-userinfo')
   .setDescription('📋 Информация об аккаунте игрока Minecraft (IP, 2FA, Статус)')
-  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
   .addStringOption(option =>
     option.setName('player')
-      .setDescription('Никнейм игрока Minecraft')
-      .setRequired(true)
+      .setDescription('Никнейм игрока (Оставьте пустым для своего профиля)')
+      .setRequired(false)
   );
 
 // SHA256 Password Hash Helper (salt + password hash compatible with plugin)
@@ -96,20 +91,51 @@ function hashPassword(password, salt = 'UniversalAuthSalt2026') {
   return '$SHA$' + salt + '$' + crypto.createHash('sha256').update(password + salt).digest('hex');
 }
 
+/**
+ * Helper to resolve target player and check permissions:
+ * - Regular user: Can ONLY manage their OWN linked Minecraft account!
+ * - Admin user (BanMembers / KickMembers / Admin): Can manage ANY player.
+ */
+function resolveTargetPlayer(interaction, inputPlayer) {
+  const linkedPlayer = db.getAuthPlayerByDiscordId(interaction.user.id);
+  const isAdmin = Boolean(
+    interaction.memberPermissions?.has(PermissionFlagsBits.BanMembers) ||
+    interaction.memberPermissions?.has(PermissionFlagsBits.KickMembers) ||
+    interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+  );
+
+  if (!inputPlayer || inputPlayer.trim().length === 0) {
+    if (!linkedPlayer) {
+      return { error: 'ℹ️ **К вашему Discord аккаунту не привязан ни один профиль Minecraft.** Зайдите на сервер и введите `/2fa`.' };
+    }
+    return { player: linkedPlayer, targetUsername: linkedPlayer.username, isSelf: true };
+  }
+
+  const cleanInput = inputPlayer.trim().toLowerCase();
+
+  if (linkedPlayer && linkedPlayer.username.toLowerCase() === cleanInput) {
+    return { player: linkedPlayer, targetUsername: linkedPlayer.username, isSelf: true };
+  }
+
+  if (!isAdmin) {
+    return { error: '⛔ **Ошибка доступа!** Вы можете управлять (кикать, замораживать, менять пароль) только **своим собственным аккаунтом Minecraft**!' };
+  }
+
+  const foundPlayer = db.getAuthPlayer(cleanInput) || { username: cleanInput, display_name: inputPlayer.trim() };
+  return { player: foundPlayer, targetUsername: cleanInput, isSelf: false };
+}
+
 // ── Command Handlers ──────────────────────────────────────────
 export async function executeActivate(interaction) {
   const keyInput = interaction.options.getString('key').trim();
   let player = db.getAuthPlayerBySecretKey(keyInput);
 
-  // Fallback 1: Flexible key matching across all existing players
   if (!player) {
     const allPlayers = db.getAllAuthPlayers();
     player = allPlayers.find(p => p.secret_key && p.secret_key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === keyInput.replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
   }
 
-  // Fallback 2: Universal Key Match — if key starts with UA- or valid pattern, auto-register/link for user
   if (!player && /^UA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(keyInput)) {
-    // Register temporary player entry bound to Discord ID
     const autoUsername = `player_${interaction.user.id.slice(-6)}`;
     player = {
       username: autoUsername,
@@ -128,13 +154,11 @@ export async function executeActivate(interaction) {
     });
   }
 
-  // Link Discord account
   player.is_2fa_enabled = true;
   player.discord_id = interaction.user.id;
-  player.secret_key = null; // Clear used secret key
+  player.secret_key = null;
   db.saveAuthPlayer(player);
 
-  // Notify Plugin via Bridge
   sendCommandToPlugin('2FA_ACTIVATED', {
     username: player.username,
     discordId: interaction.user.id
@@ -175,7 +199,6 @@ export async function execute2FADiscord(interaction) {
     });
   }
 
-  // Action status
   const embed = new EmbedBuilder()
     .setTitle(`🛡️ Статус 2FA: ${player.display_name}`)
     .addFields(
@@ -191,10 +214,15 @@ export async function execute2FADiscord(interaction) {
 }
 
 export async function executeMcFreeze(interaction) {
-  const targetUsername = interaction.options.getString('player').trim();
-  const reason = interaction.options.getString('reason') || 'Нарушение правил / Безопасность';
+  const inputPlayer = interaction.options.getString('player');
+  const reason = interaction.options.getString('reason') || 'Заморожено владельцем аккаунта / безопасности';
 
-  const player = db.getAuthPlayer(targetUsername) || { username: targetUsername.toLowerCase(), display_name: targetUsername };
+  const res = resolveTargetPlayer(interaction, inputPlayer);
+  if (res.error) {
+    return await interaction.reply({ content: res.error, ephemeral: true });
+  }
+
+  const player = res.player;
   player.is_frozen = true;
   db.saveAuthPlayer(player);
 
@@ -202,7 +230,9 @@ export async function executeMcFreeze(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('❄️ Аккаунт Заморожен!')
-    .setDescription(`Аккаунт **${player.display_name}** успешно заморожен. Игрок не сможет зайти на сервер Minecraft.`)
+    .setDescription(res.isSelf 
+      ? `Вы успешно заморозили **свой собственный аккаунт ${player.display_name}**! Вход на сервер для вашей безопасности заблокирован.`
+      : `Аккаунт **${player.display_name}** успешно заморожен администратором.`)
     .addFields({ name: '📝 Причина', value: reason })
     .setColor(0x3b82f6)
     .setTimestamp();
@@ -211,13 +241,14 @@ export async function executeMcFreeze(interaction) {
 }
 
 export async function executeMcUnfreeze(interaction) {
-  const targetUsername = interaction.options.getString('player').trim();
-  const player = db.getAuthPlayer(targetUsername);
+  const inputPlayer = interaction.options.getString('player');
 
-  if (!player) {
-    return await interaction.reply({ content: `❌ Аккаунт игрока \`${targetUsername}\` не найден в Базе Данных.`, ephemeral: true });
+  const res = resolveTargetPlayer(interaction, inputPlayer);
+  if (res.error) {
+    return await interaction.reply({ content: res.error, ephemeral: true });
   }
 
+  const player = res.player;
   player.is_frozen = false;
   db.saveAuthPlayer(player);
 
@@ -225,7 +256,9 @@ export async function executeMcUnfreeze(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('🔥 Аккаунт Разморожен!')
-    .setDescription(`Аккаунт **${player.display_name}** разморожен. Игрок снова может заходить на сервер.`)
+    .setDescription(res.isSelf
+      ? `Вы успешно разморозили **свой собственный аккаунт ${player.display_name}**! Теперь вы снова можете заходить на сервер.`
+      : `Аккаунт **${player.display_name}** разморожен администратором.`)
     .setColor(0x22c55e)
     .setTimestamp();
 
@@ -233,14 +266,21 @@ export async function executeMcUnfreeze(interaction) {
 }
 
 export async function executeMcKick(interaction) {
-  const targetUsername = interaction.options.getString('player').trim();
-  const reason = interaction.options.getString('reason') || 'Кикнут администратором через Discord';
+  const inputPlayer = interaction.options.getString('player');
+  const reason = interaction.options.getString('reason') || 'Кик по запросу владельца через Discord';
 
-  sendCommandToPlugin('KICK_PLAYER', { username: targetUsername, reason });
+  const res = resolveTargetPlayer(interaction, inputPlayer);
+  if (res.error) {
+    return await interaction.reply({ content: res.error, ephemeral: true });
+  }
+
+  sendCommandToPlugin('KICK_PLAYER', { username: res.targetUsername, reason });
 
   const embed = new EmbedBuilder()
     .setTitle('👢 Команда Кика Отправлена')
-    .setDescription(`Запрос на кик игрока **${targetUsername}** с сервера Minecraft отправлен.`)
+    .setDescription(res.isSelf
+      ? `Запрос на кик **вашего собственного аккаунта ${res.targetUsername}** с сервера Minecraft отправлен.`
+      : `Запрос на кик игрока **${res.targetUsername}** отправлен администратором.`)
     .addFields({ name: '📝 Причина', value: reason })
     .setColor(0xeab308)
     .setTimestamp();
@@ -249,47 +289,52 @@ export async function executeMcKick(interaction) {
 }
 
 export async function executeMcChangePass(interaction) {
-  const targetUsername = interaction.options.getString('player').trim();
+  const inputPlayer = interaction.options.getString('player');
   const newPassword = interaction.options.getString('newpassword').trim();
 
-  const player = db.getAuthPlayer(targetUsername);
-  if (!player) {
-    return await interaction.reply({ content: `❌ Аккаунт игрока \`${targetUsername}\` не найден в Базе Данных.`, ephemeral: true });
+  const res = resolveTargetPlayer(interaction, inputPlayer);
+  if (res.error) {
+    return await interaction.reply({ content: res.error, ephemeral: true });
   }
 
-  const hash = hashPassword(newPassword);
-  player.password_hash = hash;
-  db.saveAuthPlayer(player);
+  const newHash = hashPassword(newPassword);
+  res.player.password_hash = newHash;
+  db.saveAuthPlayer(res.player);
 
-  sendCommandToPlugin('CHANGE_PASS', { username: player.username, newPasswordHash: hash });
+  sendCommandToPlugin('CHANGE_PASS', {
+    username: res.targetUsername,
+    newPasswordHash: newHash
+  });
 
   const embed = new EmbedBuilder()
     .setTitle('🔑 Пароль Успешно Изменен')
-    .setDescription(`Пароль для аккаунта **${player.display_name}** был успешно обновлен!`)
+    .setDescription(res.isSelf
+      ? `Пароль от **вашего собственного аккаунта ${res.targetUsername}** в Minecraft был успешно изменен!`
+      : `Пароль от аккаунта **${res.targetUsername}** был успешно изменен администратором.`)
     .setColor(0x22c55e)
     .setTimestamp();
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed] });
 }
 
 export async function executeMcUserInfo(interaction) {
-  const targetUsername = interaction.options.getString('player').trim();
-  const player = db.getAuthPlayer(targetUsername);
+  const inputPlayer = interaction.options.getString('player');
 
-  if (!player) {
-    return await interaction.reply({ content: `❌ Аккаунт игрока \`${targetUsername}\` не найден в Базе Данных.`, ephemeral: true });
+  const res = resolveTargetPlayer(interaction, inputPlayer);
+  if (res.error) {
+    return await interaction.reply({ content: res.error, ephemeral: true });
   }
 
+  const player = res.player;
+
   const embed = new EmbedBuilder()
-    .setTitle(`📋 Профиль Игрока: ${player.display_name}`)
+    .setTitle(`📋 Профиль Игрока: ${player.display_name || res.targetUsername}`)
     .addFields(
-      { name: '👤 Никнейм', value: `\`${player.display_name}\``, inline: true },
+      { name: '👤 Никнейм', value: `\`${player.display_name || res.targetUsername}\``, inline: true },
       { name: '🌐 IP Адрес', value: `\`${player.ip_address || '127.0.0.1'}\``, inline: true },
-      { name: '🛡️ 2FA Статус', value: player.is_2fa_enabled ? '✅ Включена' : '❌ Отключена', inline: true },
-      { name: '❄️ Статус Заморозки', value: player.is_frozen ? '❄️ Заморожен' : '🟢 Активен', inline: true },
-      { name: '💬 Discord ID', value: player.discord_id ? `<@${player.discord_id}> (\`${player.discord_id}\`)` : '❌ Не привязан', inline: true },
-      { name: '📅 Дата регистрации', value: `<t:${Math.floor((player.registration_date || Date.now()) / 1000)}:f>`, inline: false },
-      { name: '🕒 Последний вход', value: `<t:${Math.floor((player.last_login || Date.now()) / 1000)}:R>`, inline: false }
+      { name: '🔒 2FA Защита', value: player.is_2fa_enabled ? '✅ Включена' : '❌ Отключена', inline: true },
+      { name: '❄️ Заморозка', value: player.is_frozen ? '❄️ Заморожен' : '🟢 Активен', inline: true },
+      { name: '📅 Регистрация', value: player.registration_date ? `<t:${Math.floor(player.registration_date / 1000)}:f>` : 'Неизвестно', inline: true }
     )
     .setColor(0x3b82f6)
     .setTimestamp();
