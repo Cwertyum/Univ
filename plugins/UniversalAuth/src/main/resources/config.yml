@@ -3,7 +3,31 @@
 # ПОДДЕРЖКА ЯДЕР: SPIGOT / PAPER / BUNGEECORD / VELOCITY
 # ======================================================
 
-# База Данных (sqlite или mysql)
+# ------------------------------------------------------
+# 🔑 ТОКЕНЫ БОТОВ (ДИСКОРД И ТЕЛЕГРАМ)
+# ------------------------------------------------------
+
+# Настройка Discord Бота
+discord:
+  enabled: true
+  bot_token: "СЮДА_ВСТАВЛЯТЬ_ТОКЕН_ДИСКОРД_БОТА" # Токен из https://discord.com/developers/applications
+  bot_host: "http://localhost"
+  bot_port: 3001
+  poll_interval_ticks: 20
+  timeout_seconds: 60
+
+# Настройка Telegram Бота
+telegram:
+  enabled: true
+  bot_token: "СЮДА_ВСТАВЛЯТЬ_ТОКЕН_ТЕЛЕГРАМ_БОТА" # Токен от @BotFather
+  bot_host: "http://localhost"
+  bot_port: 3002
+  poll_interval_ticks: 20
+  timeout_seconds: 60
+
+# ------------------------------------------------------
+# 💾 БАЗА ДАННЫХ (sqlite или mysql)
+# ------------------------------------------------------
 database:
   type: "sqlite" # sqlite или mysql
   mysql:
@@ -14,28 +38,17 @@ database:
     password: ""
     table_prefix: "ua_"
 
-# Настройка Telegram Бота (Прямой Токен из @BotFather)
-telegram:
-  enabled: true
-  bot_token: "ВАШ_TELEGRAM_BOT_TOKEN_ИЗ_BOTFATHER"
-  bot_host: "http://localhost"
-  bot_port: 3002
-
-# Настройка Discord Бота
-discord:
-  enabled: true
-  bot_host: "http://localhost"
-  bot_port: 3001
-  poll_interval_ticks: 20
-  timeout_seconds: 60
-
-# Поддержка Прокси-Сетей (BungeeCord & Velocity)
+# ------------------------------------------------------
+# 🌐 ПРОКСИ-СЕТИ (BungeeCord & Velocity IP Forwarding)
+# ------------------------------------------------------
 proxy:
   bungeecord_support: true
   velocity_support: true
   use_proxy_ip_forwarding: true
 
-# Ограничения неавторизованного игрока
+# ------------------------------------------------------
+# 🔒 БЕЗОПАСНОСТЬ НЕАВТОРИЗОВАННОГО ИГРОКА
+# ------------------------------------------------------
 security:
   blindness_effect: true
   freeze_position: true
@@ -43,7 +56,9 @@ security:
   prevent_commands: true
   prevent_damage: true
 
-# Текстовые Сообщения (Локализация)
+# ------------------------------------------------------
+# 💬 ТЕКСТОВЫЕ СООБЩЕНИЯ И ЛОКАЛИЗАЦИЯ
+# ------------------------------------------------------
 messages:
   prefix: "&8[&bUniversalAuth&8] &r"
   please_register: "&eЗарегистрируйтесь: &b/register <пароль> <подтверждениеПароля>"
