@@ -41,13 +41,6 @@ export async function handleReady(client) {
     console.error('[UniversalAuth Bridge Error]', e.message);
   }
 
-  // Auto-launch Telegram Bot Plugin
-  try {
-    startTelegramBot();
-  } catch (e) {
-    console.error('[Telegram Plugin Error]', e.message);
-  }
-
   client.user.setPresence({
     activities: [{ name: '/help | Команды бота', type: ActivityType.Watching }],
     status: 'online'
